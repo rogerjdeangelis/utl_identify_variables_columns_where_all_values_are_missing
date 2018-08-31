@@ -1,5 +1,7 @@
 Identify variables columns where all values are missing
 
+Additional voodoo solution on end
+
 INPUT
 =====
 
@@ -99,4 +101,136 @@ A000 . A000 A000
 run;quit;
 
 * see process for solution;
+
+
+* __                                            _
+ / _|_ __ ___  _ __ ___   __   _____   ___   __| | ___   ___
+| |_| '__/ _ \| '_ ` _ \  \ \ / / _ \ / _ \ / _` |/ _ \ / _ \
+|  _| | | (_) | | | | | |  \ V / (_) | (_) | (_| | (_) | (_) |
+|_| |_|  \___/|_| |_| |_|   \_/ \___/ \___/ \__,_|\___/ \___/
+
+;
+
+Good Point Data Null.
+
+Pulled this macro out of oto_voodoo
+
+https://github.com/rogerjdeangelis/voodoo
+
+I think I have couple more in my archives?
+
+
+Good Point Daa_null_
+
+pulled this out of
+
+INPUT
+=====
+
+data have;
+ input (VAR1 VAR2 VAR3 VAR4) ($);
+cards4;
+A000 . A000 A000
+A000 . A000 A000
+ . . A000 .
+A000 . A000 .
+A000 . A000 A000
+;;;;
+run;quit;
+
+
+PROCESS
+=======
+
+%_vdo_mispoptbl(lib=work,mem=have);
+
+%macro _vdo_mispoptbl(lib=&libname,mem=&data);
+
+    /*
+
+      data zipcode;
+        set sashelp.zipcode;
+      run;quit;
+
+      %let lib=work;
+      %let mem=zipcode;
+    */
+
+    title1 "Missing vs Populated Frequencies";
+
+    Proc format;
+         value mispopn
+          . = 'MIS'
+          other='POP';
+    ;
+         value $mispopc
+          ' ' = 'MIS'
+          other='POP'
+    ;
+    run;
+
+    proc sql noprint;
+       select count(*) into :_vdo_popmiscnt trimmed from %str(&lib).%str(&mem)
+    ;quit;
+
+    ods exclude all;
+    ods output onewayfreqs=_vdo_mispop(keep=table frequency);
+    proc freq data=%str(&lib).%str(&mem) ;
+    format _character_ $mispopc. _numeric_ mispopn.;
+    run;quit;
+    ods select all;
+
+    /*
+    Up to 40 obs WORK.HSP_QA1_FRQ total obs=21
+
+    Obs    TABLE                FREQUENCY
+
+      1    Table ZIP              41267
+      2    Table Y                41267
+      3    Table X                41267
+      4    Table ZIP_CLASS        11455
+      5    Table CITY             41267
+    */
+
+    data _vdo_mispop001;
+       retain variable pop mis mispct;
+       length variable $32;
+       keep variable pop mis mispct;
+       set _vdo_mispop (rename=FREQUENCY=pop);
+       mis=sum(&_vdo_popmiscnt, -1*pop);
+       mispct=mis/&_vdo_popmiscnt;
+       variable=scan(table,2);
+    run;quit;
+
+    proc report data=_vdo_mispop001 nowd;
+      cols ( "Populated,  Missing and Missing Frequencies and Percents" variable pop mis mispct);
+      define variable /display "Variable"   ;
+      define pop      /display "Populated"           format=comma18.;
+      define mis      /display "Missing"             format=comma18.;
+      define mispct   /display "Missing#Percent"     format=percent10.2;
+    run;quit;
+
+
+%mend _vdo_mispoptbl;
+
+
+%_vdo_mispoptbl(lib=work,mem=have);
+
+
+OUTPUT
+======
+
+Missing vs Populated Frequencies
+
+                Populated,  Missing and Missing Frequencies and Percents
+                                             Missing#Pe
+  Variable    Populated             Missing       rcent
+  VAR1                4                   1     20.00%
+  VAR2                _                   5    100.00%
+  VAR3                5                   0      0.00%
+  VAR4                3                   2     40.00%
+
+
+
+
 
